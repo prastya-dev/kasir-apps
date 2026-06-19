@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kasir_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "7001:7001"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    ports:
+      - "7002:7002"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/kasir_db
+      JWT_SECRET: change-this-in-production
+      FRONTEND_URL: http://localhost:7003
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build: ./apps/web
+    restart: unless-stopped
+    ports:
+      - "7003:7003"
+    environment:
+      NEXT_PUBLIC_API_URL: http://kasirappsapi.dhycloud.online
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
