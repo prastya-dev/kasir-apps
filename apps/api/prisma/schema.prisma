@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  kasir
+  customer
+}
+
+enum OrderType {
+  dine_in
+  takeaway
+}
+
+enum PaymentMethod {
+  cash
+  cashless
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+  expired
+}
+
+enum OrderStatus {
+  pending
+  dimasak
+  selesai
+  batal
+}
+
+enum FinancialType {
+  pemasukan
+  pengeluaran
+}
+
+enum FinancialCategory {
+  penjualan
+  pembelian_bahan
+  operasional
+  lainnya
+}
+
+model User {
+  id         String    @id @default(uuid())
+  name       String    @db.VarChar(100)
+  email      String?   @unique @db.VarChar(100)
+  password   String    @db.VarChar(255)
+  role       UserRole
+  createdAt  DateTime  @default(now()) @map("created_at")
+  orders     Order[]
+
+  @@map("users")
+}
+
+model Menu {
+  id             String      @id @default(uuid())
+  name           String      @db.VarChar(100)
+  description    String?     @db.Text
+  imageUrl       String?     @map("image_url")
+  price          Decimal     @db.Decimal(12, 2)
+  costPerPortion Decimal     @db.Decimal(12, 2) @map("cost_per_portion")
+  dailyStock     Int         @default(0) @map("daily_stock")
+  isAvailable    Boolean     @default(true) @map("is_available")
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at")
+  orderItems     OrderItem[]
+
+  @@map("menus")
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique @map("invoice_number") @db.VarChar(50)
+  userId        String?       @map("user_id")
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orderType     OrderType     @map("order_type")
+  tableNumber   String?       @map("table_number") @db.VarChar(10)
+  totalAmount   Decimal       @default(0) @map("total_amount") @db.Decimal(12, 2)
+  paymentMethod PaymentMethod @map("payment_method")
+  paymentStatus PaymentStatus @default(unpaid) @map("payment_status")
+  orderStatus   OrderStatus   @default(pending) @map("order_status")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  items         OrderItem[]
+  financialLogs FinancialLog[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid())
+  orderId     String  @map("order_id")
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuId      String  @map("menu_id")
+  menu        Menu    @relation(fields: [menuId], references: [id])
+  quantity    Int
+  priceAtSale Decimal @map("price_at_sale") @db.Decimal(12, 2)
+  costAtSale  Decimal @map("cost_at_sale") @db.Decimal(12, 2)
+  notes       String? @db.Text
+
+  @@map("order_items")
+}
+
+model FinancialLog {
+  id          String            @id @default(uuid())
+  logType     FinancialType     @map("log_type")
+  amount      Decimal           @db.Decimal(12, 2)
+  category    FinancialCategory
+  referenceId String?           @map("reference_id")
+  order       Order?            @relation(fields: [referenceId], references: [id], onDelete: SetNull)
+  description String            @db.Text
+  loggedAt    DateTime          @default(now()) @map("logged_at")
+
+  @@map("financial_logs")
+}
